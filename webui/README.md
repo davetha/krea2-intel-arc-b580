@@ -37,3 +37,20 @@ about 30 lines. Slower than Option A but has no PyTorch dependency at all.
 
 Each holds 15–20 GB across VRAM+RAM. On a 32 GB host, running ComfyUI and sd-server
 simultaneously gets one of them OOM-killed (exit 137).
+
+## Accurate photo → coloring page (the img2img trap)
+
+Plain img2img cannot make a faithful coloring page from a photo with this model: at the
+denoise strength needed to whiten the background (~0.75), the model discards your subject
+entirely; at strengths that preserve the subject (~0.6), the background stays a photo.
+There is no working middle value.
+
+What works (deployed in our UI, ~45s total):
+1. **img2img pass 1** @ strength 0.60 — converts the *subject* to clean line art
+2. **img2img pass 2** @ 0.60 on the pass-1 output — refines lines, background still photo
+3. **Pixel-space binarization** — photo remnants live in *colorful neighborhoods*
+   (box-blurred saturation > threshold → force white); dark pixels in unsaturated
+   regions are line strokes (→ black). ~15 lines of PIL/numpy.
+
+Don't bother with: DoG/edge-map init images (the model hallucinates from the noise) or
+aggressive despeckling (fur strokes are small components and get eaten).
