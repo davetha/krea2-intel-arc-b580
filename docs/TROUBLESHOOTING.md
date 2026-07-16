@@ -78,6 +78,20 @@ torch-xpu paths made it moot.
 - Slow/failing build with `checking context`: your build context contains the models
   directory; add a `.dockerignore`.
 
+## Source-built Mesa (testing release candidates)
+
+- **Everything suddenly ~25× slower after swapping in a self-built ANV:** the Vulkan
+  loader silently ignored your ICD and ggml fell back to CPU. Run
+  `VK_LOADER_DEBUG=error,warn vulkaninfo --summary` — we hit
+  `libdisplay-info.so.3: cannot open shared object file` (install `libdisplay-info3`).
+  Always `ldd libvulkan_intel.so | grep "not found"` after grafting a self-built driver.
+- **`meson ... ERROR: Feature llvm cannot be disabled: CLC requires LLVM`:** ANV needs
+  intel-clc; leave LLVM enabled even for a Vulkan-only build.
+- **Mesa 26.2.0-rc1 regression:** 1024² generation OOMs
+  (`ggml_gallocr_reserve_n_impl: failed to allocate Vulkan0 buffer of size 3852311564`)
+  because rc1 exposes only 2 memory heaps vs 3 on 26.0 (the 30.67 GiB host-visible heap
+  is missing). 512² is unaffected (parity with 26.0). Re-test at 26.2 final.
+
 ## Monitoring GPU usage (xe driver)
 
 - `intel_gpu_top` (igt ≤ 2.3) does **not** support the xe PMU — prints

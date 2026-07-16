@@ -87,6 +87,11 @@ Microbenchmark: fp16 4096×4096 matmul via torch-xpu = **83.1 TFLOPS** (B580 XMX
 ### Vulkan findings (ggml / stable-diffusion.cpp fallback — see `sdcpp-vulkan/`)
 
 - **Mesa ≥ 26.0 is ~1.7× faster** than 25.2 for ggml-Vulkan on Battlemage (26.1 ≈ 26.0 here).
+- **Mesa 26.2.0-rc1** (source-built ANV, `Dockerfile.mesa-src`): 512² parity with 26.0
+  (1.66 vs 1.68 s/step; coopmat-off path slightly faster, 7.3 vs 8.0), **but 1024²
+  regresses to OOM** — rc1 exposes 2 memory heaps where 26.0 exposes 3 (the 30.67 GiB
+  host-visible heap is gone), so the ~3.9 GB diffusion compute buffer no longer fits.
+  Verdict: skip rc1 for this workload; re-test at 26.2 final.
 - **KHR_coopmat is worth ~2.5×** and is auto-enabled when Mesa reports `minSubgroupSize == 16`
   (ggml detects the GPU as `INTEL_XE2`).
 - **`--diffusion-fa` (flash attention) is ~10% SLOWER on Intel** — ggml forces a scalar FA

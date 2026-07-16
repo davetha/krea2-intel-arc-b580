@@ -1,0 +1,51 @@
+# Build any Mesa tag/branch from source (ANV Vulkan driver only) and graft it under
+# the existing sd.cpp binaries — for testing release candidates on Battlemage.
+#
+#   docker build -f Dockerfile.mesa-src --build-arg MESA_REF=mesa-26.2.0-rc1 \
+#     -t sdcpp-mesa-src .
+#
+# Findings so far (B580, Krea 2 Turbo, 8 steps):
+#   26.2.0-rc1: 512² parity with 26.0 (1.66 s/step) but 1024² OOMs — rc1 exposes only
+#   2 Vulkan memory heaps (26.0 exposes 3; the 30.67 GiB host heap is missing), so the
+#   ~3.9 GB diffusion compute buffer fails to allocate. Skip for now.
+
+ARG MESA_REF=mesa-26.2.0-rc1
+
+FROM ubuntu:26.04 AS build
+ARG MESA_REF
+ENV DEBIAN_FRONTEND=noninteractive
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources \
+ && apt-get update \
+ && apt-get build-dep -y mesa \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 --branch "$MESA_REF" \
+      https://gitlab.freedesktop.org/mesa/mesa.git /mesa
+WORKDIR /mesa
+# NOTE: -Dllvm must stay enabled — ANV's intel-clc kernel compiler requires it.
+RUN meson setup build \
+      -Dbuildtype=release \
+      -Dvulkan-drivers=intel \
+      -Dgallium-drivers= \
+      -Dplatforms= \
+      -Dglx=disabled -Degl=disabled -Dgbm=disabled \
+      -Dtools= \
+ && ninja -C build -j12 \
+ && DESTDIR=/mesa-inst ninja -C build install
+
+FROM krea2-sdcpp-vulkan:latest AS sdcpp
+
+FROM ubuntu:26.04
+ENV DEBIAN_FRONTEND=noninteractive
+# libdisplay-info3 is a required runtime dep of the built ANV — without it the Vulkan
+# loader silently ignores the ICD and ggml falls back to CPU (looks like a 25x slowdown).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libvulkan1 vulkan-tools libgomp1 libdrm2 zlib1g libzstd1 libexpat1 \
+      libdisplay-info3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /mesa-inst/usr/local /usr/local
+ENV VK_DRIVER_FILES=/usr/local/share/vulkan/icd.d/intel_icd.x86_64.json
+COPY --from=sdcpp /opt/stable-diffusion.cpp/build/bin/sd-cli /usr/local/bin/sd-cli
+COPY --from=sdcpp /opt/stable-diffusion.cpp/build/bin/sd-server /usr/local/bin/sd-server
+WORKDIR /work
+ENTRYPOINT ["sd-cli"]
