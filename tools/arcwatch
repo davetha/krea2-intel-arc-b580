@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# arcwatch — live Arc (Battlemage/xe) usage: freq / power / temp / fan.
+# act_freq is the utilization proxy on xe: ~0 idle (clock-gated), pegs near max under load.
+# Adjust card1/hwmon4 for your host: ls /sys/class/drm ; grep -l xe /sys/class/hwmon/hwmon*/name
+F=${ARC_FREQ_DIR:-/sys/class/drm/card1/device/tile0/gt0/freq0}
+H=${ARC_HWMON_DIR:-/sys/class/hwmon/hwmon4}
+while true; do
+  e1=$(cat $H/energy1_input 2>/dev/null); sleep 1; e2=$(cat $H/energy1_input 2>/dev/null)
+  w=$(( (e2-e1)/1000000 ))
+  act=$(cat $F/act_freq); max=$(cat $F/max_freq)
+  t=$(cat $H/temp*_input 2>/dev/null | head -1); t=$((${t:-0}/1000))
+  fan=$(cat $H/fan1_input 2>/dev/null)
+  printf "\r\033[Kfreq %4d/%d MHz (%3d%%) | power %3dW | temp %2d°C | fan %4d RPM " \
+    "$act" "$max" "$(( act * 100 / max ))" "$w" "$t" "$fan"
+done

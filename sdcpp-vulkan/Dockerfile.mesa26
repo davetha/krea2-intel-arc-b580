@@ -1,0 +1,21 @@
+# Runtime-only image: reuse the sd-cli/sd-server binaries from the builder image
+# (Dockerfile in this directory, tag it krea2-sdcpp-vulkan:latest) on a newer Mesa.
+#
+# Why: Mesa >= 26.0 is ~1.7x faster than 25.2 for ggml-Vulkan on Battlemage
+# (1.68 vs 2.85 s/step at 512^2 on a B580). ANV is a runtime ICD, so no rebuild
+# of stable-diffusion.cpp is needed — just swap the userspace driver underneath.
+#
+#   docker build -t krea2-sdcpp-vulkan:latest .                 # builder (once)
+#   docker build -f Dockerfile.mesa26 -t krea2-sdcpp-vulkan:mesa26 .
+
+FROM krea2-sdcpp-vulkan:latest AS src
+
+FROM ubuntu:26.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libvulkan1 mesa-vulkan-drivers vulkan-tools libgomp1 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=src /opt/stable-diffusion.cpp/build/bin/sd-cli /usr/local/bin/sd-cli
+COPY --from=src /opt/stable-diffusion.cpp/build/bin/sd-server /usr/local/bin/sd-server
+WORKDIR /work
+ENTRYPOINT ["sd-cli"]
