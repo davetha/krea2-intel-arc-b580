@@ -47,9 +47,12 @@ kobuk-team PPA GPU runtime → runs clean on Battlemage + kernel 7.0, no UR erro
 
 Performance caveat for hybrid MoE offload (`-ngl 999 -ot "exps=CPU"`, Qwen3-235B-A22B,
 experts on CPU / attention+KV on the B580):
-- generation: **9.65 t/s vs 8.97 CPU-only (+7.6%)** — best tg we measured
-- prompt processing: **13.0 vs 31.1 CPU-only** — collapses; batch activations shuttle
-  CPU↔GPU across PCIe at every layer
+- generation: **9.65 t/s vs 8.97 CPU-only (+7.6%)**; stuffing the remaining VRAM with the
+  first 4 layers' experts (`-ot "blk\.([4-9]|[1-8][0-9]|9[0-3])\.ffn_.*_exps\.=CPU"`)
+  reaches **10.01 t/s (+11.6%)** — the absolute ceiling for a 12 GB card on this model
+- prompt processing: **13.0–13.5 vs 31.1 CPU-only** — collapses; batch activations shuttle
+  CPU↔GPU across PCIe at every layer. Chat-style traffic (history re-read each turn) is
+  net SLOWER on the hybrid despite the tg win
 - Vulkan backend hybrid loses on both (26.4 pp / 6.6 tg)
 So for chat serving (prompt-heavy), CPU-only still wins on this hardware. The B580's
 hybrid value may improve if llama.cpp gains better CPU/GPU overlap for MoE.
