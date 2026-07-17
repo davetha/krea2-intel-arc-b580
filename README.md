@@ -105,9 +105,11 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for the exact error signa
 
 - ❌ `repositories.intel.com` "noble unified" NEO packages on a kernel-7.x host → abort in
   `command_encoder_xehp_and_later.inl` on first kernel dispatch (any NEO 25.x/26.x mix we tried).
-- ❌ **SYCL / oneAPI** (sd.cpp `-DSD_SYCL=ON`, oneAPI 2025.3): crashes at runtime on both UR
-  adapters — OpenCL (`UR_RESULT_ERROR_IN_EVENT_LIST_EXEC_STATUS`) and Level-Zero
-  (`UR_RESULT_ERROR_DEVICE_LOST`). Untested against the kobuk runtime since; may improve.
+- ⚠️ **SYCL / oneAPI**: crashes at runtime (`UR_RESULT_ERROR_IN_EVENT_LIST_EXEC_STATUS`,
+  `UR_RESULT_ERROR_DEVICE_LOST`) **unless you use the kobuk-PPA GPU runtime** — with it,
+  llama.cpp-SYCL runs clean on Battlemage (verified 2026-07-17; same root cause as the
+  PyTorch aborts). Note: hybrid MoE offload still loses to CPU-only for prompt-heavy
+  serving — see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for benchmarks.
 - ❌ Forcing PyTorch onto OpenCL (`ONEAPI_DEVICE_SELECTOR=opencl:gpu`) — torch's XPU layer
   only accepts Level-Zero devices.
 - ⚠️ Running two model servers on one box: a 12B pipeline holds 15–20 GB across VRAM+RAM;

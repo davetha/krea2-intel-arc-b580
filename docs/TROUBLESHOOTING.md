@@ -39,9 +39,20 @@ instead (above).
   is too old for current ggml-sycl — use oneAPI ≥ 2025.3.
 - `icpx: error: unable to execute command: Killed`: compiler OOM — lower `-j`.
 
-We did not get SYCL working on this hardware/kernel combo (tested against oneAPI 2025.3 +
-NEO 25.18/26.05/26.22). It may work with the kobuk runtime — untested. The Vulkan and
-torch-xpu paths made it moot.
+**UPDATE (2026-07-17): SYCL WORKS with the kobuk runtime.** All the UR crashes above came
+from wrong-generation NEO userspace (same root cause as the PyTorch aborts). Rebuilt
+llama.cpp with `-DGGML_SYCL=ON` on ubuntu:25.10 + Intel oneAPI apt (2025.2) + the
+kobuk-team PPA GPU runtime → runs clean on Battlemage + kernel 7.0, no UR errors.
+(sd.cpp's SYCL build untested on the fixed runtime, but the crash mechanism is gone.)
+
+Performance caveat for hybrid MoE offload (`-ngl 999 -ot "exps=CPU"`, Qwen3-235B-A22B,
+experts on CPU / attention+KV on the B580):
+- generation: **9.65 t/s vs 8.97 CPU-only (+7.6%)** — best tg we measured
+- prompt processing: **13.0 vs 31.1 CPU-only** — collapses; batch activations shuttle
+  CPU↔GPU across PCIe at every layer
+- Vulkan backend hybrid loses on both (26.4 pp / 6.6 tg)
+So for chat serving (prompt-heavy), CPU-only still wins on this hardware. The B580's
+hybrid value may improve if llama.cpp gains better CPU/GPU overlap for MoE.
 
 ## ComfyUI
 

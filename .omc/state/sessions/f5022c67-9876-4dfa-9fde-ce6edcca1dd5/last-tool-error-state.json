@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ssh -o BatchMode=yes dave@192.168.1.252 'bash -s' <<'EOF' 2>&1\\nfor i in $(seq 1 40); do [ \\\"$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081/health 2>/dev/null)\\\" = \\\"200\\\" ...",
+  "error": "Exit code 1\n=== same prompt as baseline (was 8.9 tok/s) ===\nTraceback (most recent call last):\n  File \"<string>\", line 3, in <module>\n    d=json.load(sys.stdin); t=d.get('timings',{})\n  File \"/usr/lib/python3.14/json/__init__.py\", line 298, in load\n    return loads(fp.read(),\n        cls=cls, object_hook=object_hook,\n        parse_float=parse_float, parse_int=parse_int,\n        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)\n  File \"/usr/lib/python3.14/json/__init__.py\"...",
+  "timestamp": "2026-07-17T03:11:35.342Z",
+  "retry_count": 1
+}
